@@ -15,3 +15,4 @@ There is also a class called 'stateMachine' that holds the instances of these
 states and implements methods to change the states. The state-machines are executed
 in the 'MAIN_State', 'PROCESS_STATE', 'CAN_STATE', 'CAMERA_STATE', and 'SDCARD_STATE' methods.
 These methods contain logic to perform operations based on the current state.
+##
