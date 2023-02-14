@@ -21,11 +21,11 @@ These methods contain logic to perform operations based on the current state.
 ###################### import part #########################
 import time
 import enum
-
-import can
 import time
 import serial
-import keyboard
+import string
+
+import can
 
 ###################### state machine part #################
 
@@ -71,6 +71,7 @@ class stateMachine:
         self.canProcessState    = CAN_STATE.IDLE
         self.cameraProcessState = CAMERA_STATE.IDLE
         self.sdCardProcessState = SDCARD_STATE.IDLE
+        
     def runStateMachine(self):
         while True:
             self.MAIN_State()
@@ -98,6 +99,7 @@ class stateMachine:
         elif self.mainState is MAIN_STATE.ROUTINE:
             ######### MAIN ROUTINE OPERATIONS ########
             print("MAIN STATE - ROUTINE \n")
+            sendMessage(123,[1,2,3,4,5,6,7,8])
             """
             Routine Methods etc.
             """
@@ -125,7 +127,7 @@ class stateMachine:
             self.setProcessState(PROCESS_STATE.ROUTINE)
             ##########################################
         elif self.processState is MAIN_STATE.ROUTINE:
-            ######### PROCESS ROUTINE OPERATIONS ########
+            ######### PROCESS ROUTINE OPERATIONS ########                 
             """
             Routine Methods etc.
             """
@@ -154,7 +156,7 @@ class stateMachine:
             self.setProcessState(MAIN_STATE.SUSPEND)
 
     ###########################################################
-    def CAN_STATE(self):
+    def CAN_STATE(self , msg):
         if self.canProcessState is CAN_STATE.IDLE:
             ######### CAN IDLE OPERATIONS ########
             """
@@ -247,43 +249,60 @@ class stateMachine:
             self.setSDCardState(SDCARD_STATE.SUSPEND)
         ###########################################################
 
+###########################################################
+ 
 ##################### function definition #################
-def consoleWrite(ser, text):
-    serial.serial(text.encode('Ascii'))
+from can.bus import BusState
 
+def recvMessage():
+    """Receives all messages and prints them to the console until Ctrl+C is pressed."""
 
-###################### init part ###########################
+    # this uses the default configuration (for example from environment variables, or a
+    # config file) see https://python-can.readthedocs.io/en/stable/configuration.html
+    with can.Bus(interface='socketcan',
+                 channel='can0',
+                 receive_own_messages=True) as bus:          
 
-ser = serial.Serial(port="COM3"     ,
-                    baudrate=57600   ,
-                    bytesize=8      ,
-                    timeout=2       ,
-                    parity=serial.PARITY_NONE ,
-                    stopbits=serial.STOPBITS_ONE)
+        try:
+            bus.state = BusState.PASSIVE
+        except NotImplementedError:
+            pass
 
-ser.write("ABC".encode('Ascii'))
+        try:
+            msg = bus.recv(1)
+            return msg
+        except KeyboardInterrupt:
+            return 0  # exit normally
 
+def sendMessage(id,msg):
+    
+    with can.Bus(interface='socketcan',
+                 channel='can0',
+                 receive_own_messages=True) as bus:
+        
+        message = can.Message(
+            arbitration_id=id , data=msg, is_extended_id=True
+            )
+        
+        try:
+            bus.send(message)
+            return 1
+        except can.CanError:
+            return 0
 
-
-
-###################### main while part ######################
+###################### init part ###########################      
 
 machine = stateMachine()
 machine.runStateMachine()
 
-"""
 while True:
+    msg = recvMessage()
+    print(msg)
+    sendMessage(123,[1,2,3,4,5,6,7,8])
+    
+# 
+# ###################### main while part ######################
+# 
+# 
 
-    ser.write("This is message\r\n".encode('Ascii'))
- #   receive = ser.read(); 1 byte
-    receive = ser.readline()
-    print(receive.decode('Ascii'))
-#    time.sleep(1)
-    if keyboard.is_pressed('q'):
-        print("User need to quit the app")
-        break
 
-
-data = ser.read(10);
-print(data)
-"""
